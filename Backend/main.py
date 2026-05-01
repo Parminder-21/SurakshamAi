@@ -1,6 +1,6 @@
 """
 FastAPI backend for Suraksha Agent - A security analysis service.
-Routes: GET /health, POST /analyze-message, POST /analyze-url
+Routes: GET /health, POST /analyze-message, POST /analyze-url, POST /analyze (StateGraph)
 """
 
 from fastapi import FastAPI, HTTPException
@@ -18,6 +18,7 @@ from url_agent import URLAgent
 from risk_engine import RiskEngine
 from guidance_agent import GuidanceAgent
 from privacy_scrubber import scrub_sensitive_data
+from orchestrator import analyze_input
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -192,10 +193,56 @@ async def root() -> dict:
             "GET /health": "Health check",
             "POST /analyze-message": "Analyze message for security risks",
             "POST /analyze-url": "Analyze URL for security risks",
+            "POST /analyze": "Unified StateGraph-based analysis (message or URL)",
             "GET /docs": "Interactive API documentation (Swagger UI)",
             "GET /redoc": "Alternative API documentation (ReDoc)",
         },
     }
+
+
+@app.post("/analyze", response_model=RiskAnalysisResponse)
+async def analyze_unified(request: AnalyzeMessageRequest | AnalyzeUrlRequest) -> RiskAnalysisResponse:
+    """
+    Unified LangGraph-powered analysis endpoint.
+    Auto-detects input_type based on request fields.
+    
+    Args:
+        request: Either AnalyzeMessageRequest or AnalyzeUrlRequest
+        
+    Returns:
+        RiskAnalysisResponse with unified analysis results
+        
+    Raises:
+        HTTPException: If analysis fails
+    """
+    try:
+        # Determine input type based on which field is present
+        if hasattr(request, "url") and request.url:
+            input_type = "url"
+            raw_text = str(request.url)
+        else:
+            input_type = "message"
+            raw_text = request.message
+        
+        # Run through StateGraph orchestrator
+        result = analyze_input(raw_text, input_type=input_type)
+        
+        return RiskAnalysisResponse(
+            category=result.get("detected_category", "safe"),
+            risk_score=round(float(result.get("risk_score", 0.0)), 2),
+            severity=result.get("severity", "safe"),
+            reasons=result.get("reasons", []),
+            advice=result.get("advice", ""),
+            scrubbed_text=result.get("scrubbed_text", ""),
+            url=raw_text if input_type == "url" else None,
+            timestamp=datetime.utcnow().isoformat(),
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in unified analysis: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
