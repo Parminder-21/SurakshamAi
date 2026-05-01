@@ -32,7 +32,7 @@
 ### Backend
 1. `cd backend`
 2. `pip install -r requirements.txt`
-3. `python main.py`
+3. `python app/main.py`
 
 ### Android
 1. Open `android/` in Android Studio.
