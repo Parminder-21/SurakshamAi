@@ -6,8 +6,6 @@ Routes: GET /health, POST /analyze-message, POST /analyze-url
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from typing import Optional
-
 # Import agents and models
 from models import (
     AnalyzeMessageRequest,
@@ -42,6 +40,15 @@ message_agent = MessageAgent()
 url_agent = URLAgent()
 risk_engine = RiskEngine()
 guidance_agent = GuidanceAgent()
+
+
+def _simple_severity_label(risk_score: float) -> str:
+    """Map a numeric score to the simple labels used in the frontend response."""
+    if risk_score >= 65:
+        return "high_risk"
+    if risk_score >= 25:
+        return "suspicious"
+    return "safe"
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -81,14 +88,20 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
         scrubbed_message = scrub_sensitive_data(request.message)
         
         # Analyze the message
-        category, risk_score, reasons = message_agent.analyze(scrubbed_message)
-        
-        # Calculate severity
-        severity = risk_engine.calculate_severity(risk_score)
-        
-        # Generate advice
-        advice = risk_engine.get_advice(category, risk_score, severity)
-        
+        analysis = message_agent.analyze(scrubbed_message)
+        category = analysis["category"]
+        risk_score = analysis["risk_score"]
+        reasons = analysis["reasons"]
+        severity = _simple_severity_label(risk_score)
+
+        # Guidance agent returns short, action-focused advice.
+        advice = guidance_agent.get_detailed_guidance(
+            category=category,
+            risk_score=risk_score,
+            severity=severity,
+            reasons=reasons,
+        )
+
         # Scrub sensitive data from reasons for privacy (double-check)
         scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
         
@@ -98,6 +111,7 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
             severity=severity,
             reasons=scrubbed_reasons,
             advice=advice,
+            scrubbed_text=scrubbed_message,
             timestamp=datetime.utcnow().isoformat(),
         )
     
@@ -130,12 +144,17 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
         
         # Analyze the URL
         category, risk_score, reasons = url_agent.analyze(url_str)
-        
+
         # Calculate severity
-        severity = risk_engine.calculate_severity(risk_score)
-        
-        # Generate advice
-        advice = risk_engine.get_advice(category, risk_score, severity)
+        severity = _simple_severity_label(risk_score)
+
+        # Keep URL guidance short and action-focused too.
+        advice = guidance_agent.get_detailed_guidance(
+            category=category,
+            risk_score=risk_score,
+            severity=severity,
+            reasons=reasons,
+        )
         
         # P1 FIX: Scrub sensitive data from reasons for privacy
         scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
@@ -146,6 +165,7 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
             severity=severity,
             reasons=scrubbed_reasons,
             advice=advice,
+            scrubbed_text=url_str,
             timestamp=datetime.utcnow().isoformat(),
         )
     

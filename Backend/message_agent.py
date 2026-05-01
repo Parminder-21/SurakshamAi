@@ -1,199 +1,255 @@
 """
-Message analysis agent to assess text/message content for risks.
+Message analysis agent for Suraksha Agent.
+
+This version keeps the logic deterministic and beginner-friendly:
+- scan the message for scam-taxonomy keywords and red flags
+- derive a few simple signals
+- send those signals to the risk engine
+- return a structured dictionary
 """
 
-from typing import Tuple, List
-from risk_engine import RiskEngine
-from privacy_scrubber import scrub_sensitive_data, contains_sensitive_data
+from typing import Any, Dict, List, Tuple
 
-# Import taxonomy for India-specific scam indicators
+from privacy_scrubber import contains_sensitive_data
+from risk_engine import RiskEngine
 from taxonomy import TAXONOMY
 
 
 class MessageAgent:
-    """
-    Agent responsible for analyzing messages for phishing, scams, and malware references.
-    """
-    
-    def __init__(self):
-        """Initialize the message agent."""
-        self.risk_engine = RiskEngine()
-        
-        # Base keywords for different risk categories
-        self.phishing_keywords = [
-            'verify', 'confirm', 'update', 'validate', 'click here', 'urgent',
-            'action required', 'act now', 'expire', 'suspended', 'limited time',
-            'unusual activity', 'confirm identity', 'verify account'
-        ]
-        
-        self.scam_keywords = [
-            'winning', 'congratulations', 'claim', 'prize', 'money', 'free',
-            'bonus', 'inheritance', 'transfer', 'wire', 'urgent payment',
-            'bitcoin', 'cryptocurrency', 'investment opportunity'
-        ]
-        
-        self.malware_keywords = [
-            'download', 'install', 'execute', 'run', 'extension', 'plugin',
-            'attachment', 'zip', 'exe'
-        ]
-        
-        # Store taxonomy for later use in analysis
-        self.taxonomy = TAXONOMY
-        
-        # Extend keyword lists using taxonomy entries (Indian scam categories)
-        mapping = {
-            'fake_kyc': 'phishing_keywords',
-            'authority_impersonation': 'phishing_keywords',
-            'otp_theft': 'phishing_keywords',
-            'upi_collect_request_scam': 'phishing_keywords',
+    """Analyze message text and return a structured scam assessment."""
 
-            'electricity_bill_scam': 'scam_keywords',
-            'courier_scam': 'scam_keywords',
-            'job_scam': 'scam_keywords',
-            'lottery_scam': 'scam_keywords',
+    def __init__(self):
+        self.risk_engine = RiskEngine()
+        self.taxonomy = TAXONOMY
+
+        # Categories are grouped so we can convert keyword matches into a scam label.
+        self.category_priority = [
+            "otp_theft",
+            "authority_impersonation",
+            "upi_collect_request_scam",
+            "fake_kyc",
+            "electricity_bill_scam",
+            "courier_scam",
+            "job_scam",
+            "lottery_scam",
+        ]
+
+        self.general_urgency_terms = [
+            "urgent",
+            "immediately",
+            "now",
+            "within 24 hours",
+            "last chance",
+            "expire",
+            "suspended",
+            "limited time",
+            "act fast",
+            "respond quickly",
+        ]
+
+        self.authority_terms = [
+            "police",
+            "court",
+            "income tax",
+            "rbi",
+            "bank",
+            "government",
+            "official notice",
+            "legal action",
+            "fined",
+            "authority",
+        ]
+
+        self.deception_terms = [
+            "congratulations",
+            "you won",
+            "claim your prize",
+            "free gift",
+            "reward",
+            "bonus",
+            "verified",
+            "confirm your details",
+            "update kyc",
+            "too good to be true",
+        ]
+
+        self.payment_terms = [
+            "pay now",
+            "payment",
+            "send money",
+            "transfer money",
+            "fee",
+            "charges",
+            "deposit",
+            "upi pin",
+            "collect request",
+            "scan qr",
+        ]
+
+        self.otp_terms = [
+            "otp",
+            "one time password",
+            "verification code",
+            "enter otp",
+            "share otp",
+        ]
+
+    def analyze(self, message: str) -> Dict[str, Any]:
+        """Analyze message text and return a structured result."""
+        text = message or ""
+        message_lower = text.lower()
+
+        matched_keywords: List[str] = []
+        reasons: List[str] = []
+
+        category, category_keywords, category_red_flags = self._detect_category(message_lower)
+        matched_keywords.extend(category_keywords)
+
+        urgency_score, urgency_hits = self._score_terms(message_lower, self.general_urgency_terms, 18.0)
+        authority_score, authority_hits = self._score_terms(message_lower, self.authority_terms, 22.0)
+        deception_score, deception_hits = self._score_terms(message_lower, self.deception_terms, 20.0)
+        payment_pressure, payment_hits = self._flag_terms(message_lower, self.payment_terms)
+        otp_request, otp_hits = self._flag_terms(message_lower, self.otp_terms)
+        suspicious_link = self._has_suspicious_link(message_lower)
+        reward_promise = self._has_reward_promise(message_lower)
+
+        # Add category-specific matches to the output and reasons.
+        matched_keywords.extend(urgency_hits)
+        matched_keywords.extend(authority_hits)
+        matched_keywords.extend(deception_hits)
+        matched_keywords.extend(payment_hits)
+        matched_keywords.extend(otp_hits)
+
+        if category != "safe":
+            reasons.append(f"Matched scam taxonomy category: {category}")
+            reasons.append(category_red_flags)
+
+        if urgency_hits:
+            reasons.append("Urgency language detected")
+        if authority_hits:
+            reasons.append("Authority impersonation language detected")
+        if deception_hits:
+            reasons.append("Deceptive or reward-based language detected")
+        if payment_pressure:
+            reasons.append("Payment pressure detected")
+        if suspicious_link:
+            reasons.append("Suspicious link detected")
+        if otp_request:
+            reasons.append("OTP request detected")
+        if reward_promise:
+            reasons.append("Suspicious reward promise detected")
+        if contains_sensitive_data(text):
+            reasons.append("Sensitive personal data present in the message")
+            deception_score = max(deception_score, 15.0)
+
+        # Keep output deterministic and easy to explain.
+        risk_score, severity = self.risk_engine.calculate_risk_score(
+            urgency_score=urgency_score,
+            authority_score=authority_score,
+            deception_score=deception_score,
+            payment_pressure=payment_pressure,
+            suspicious_link=suspicious_link,
+            otp_request=otp_request,
+        )
+
+        if suspicious_link:
+            matched_keywords.append("suspicious_link")
+        if reward_promise:
+            matched_keywords.append("reward_promise")
+
+        if category == "safe" and risk_score < 25:
+            category = "safe"
+        elif category == "safe":
+            category = self._category_from_signals(urgency_score, authority_score, deception_score)
+
+        return {
+            "category": category,
+            "risk_score": risk_score,
+            "severity": severity,
+            "reasons": self._unique_keep_order([r for r in reasons if r]),
+            "matched_keywords": self._unique_keep_order(matched_keywords),
         }
 
-        for cat, list_name in mapping.items():
-            entry = self.taxonomy.get(cat)
-            if not entry:
-                continue
-            keywords = entry.get('keywords', [])
-            target_list = getattr(self, list_name, None)
-            if isinstance(target_list, list):
-                for kw in keywords:
-                    if kw.lower() not in target_list:
-                        target_list.append(kw.lower())
-    
-    def analyze(self, message: str) -> Tuple[str, float, List[str]]:
-        """
-        Analyze a message for security risks.
-        
-        Args:
-            message: The message text to analyze
-            
-        Returns:
-            Tuple of (category, risk_score, reasons)
-        """
-        message_lower = message.lower()
-        reasons = []
-        scores = []
-        
-        # 1. Check for suspicious patterns
-        has_urls = self._check_for_urls(message)
-        has_sensitive_data = contains_sensitive_data(message)
-        
-        # 2. Check for taxonomy-specific red flags (P1 Improvement)
-        taxonomy_score, taxonomy_reasons = self._check_taxonomy_red_flags(message_lower)
-        if taxonomy_score > 0:
-            scores.append(taxonomy_score)
-            reasons.extend(taxonomy_reasons)
-        
-        # 3. Phishing checks
-        phishing_score = self._check_phishing(message_lower, reasons)
-        if phishing_score > 0:
-            scores.append(phishing_score)
-        
-        # 4. Scam checks
-        scam_score = self._check_scam(message_lower, reasons)
-        if scam_score > 0:
-            scores.append(scam_score)
-        
-        # 5. Sensitive data checks
-        if has_sensitive_data:
-            reasons.append("Message contains sensitive personal information (risk of data theft)")
-            scores.append(40) # Increased from 35
-        
-        # 6. URL checks
-        if has_urls:
-            reasons.append("Message contains URLs that require verification")
-            scores.append(30) # Increased from 25
-        
-        # Determine category and combined score
-        if not scores:
-            return ('safe', 0.0, ['No concerning patterns detected'])
-        
-        combined_score = self.risk_engine.combine_scores(scores)
-        
-        # Determine primary category
-        if phishing_score and phishing_score >= scam_score:
-            category = 'phishing'
-        elif scam_score and scam_score >= phishing_score:
-            category = 'scam'
-        elif taxonomy_reasons:
-            # If taxonomy matched, use the first matching category
-            category = 'scam' 
-        else:
-            category = 'spam'
-        
-        return (category, combined_score, list(set(reasons))) # Deduplicate reasons
-    
-    def _check_taxonomy_red_flags(self, message_lower: str) -> Tuple[float, List[str]]:
-        """Check for specific red flags defined in the Indian scam taxonomy."""
-        score = 0
-        reasons = []
-        
-        for cat_id, entry in self.taxonomy.items():
-            red_flags = entry.get('red_flags', [])
-            for flag in red_flags:
-                if flag.lower() in message_lower:
-                    score = max(score, 70) # High base score for explicit red flags
-                    reasons.append(f"Detected {entry['description'].lower()}")
-                    break
-        
-        return score, reasons
+    def analyze_legacy(self, message: str) -> Tuple[str, float, List[str]]:
+        """Backward-compatible tuple output for older callers."""
+        result = self.analyze(message)
+        return result["category"], result["risk_score"], result["reasons"]
 
-    def _check_phishing(self, message_lower: str, reasons: List[str]) -> float:
-        """Check for phishing indicators."""
-        score = 0
-        keyword_count = 0
-        
-        for keyword in self.phishing_keywords:
-            if keyword in message_lower:
-                keyword_count += 1
-        
-        if keyword_count >= 3:
-            score = 85 # Increased from 75
-            reasons.append(f"High number of phishing keywords detected ({keyword_count})")
-        elif keyword_count >= 2:
-            score = 60 # Increased from 50
-            reasons.append(f"Multiple phishing keywords detected ({keyword_count})")
-        elif keyword_count >= 1:
-            score = 30 # Increased from 25
-        
-        # Additional checks for urgency and threats
-        if any(word in message_lower for word in ['immediately', 'urgent', 'now', 'quickly']):
-            score += 15
-            reasons.append("Message uses urgency tactics to pressure response")
-        
-        return min(100.0, score)
-    
-    def _check_scam(self, message_lower: str, reasons: List[str]) -> float:
-        """Check for scam indicators."""
-        score = 0
-        keyword_count = 0
-        
-        for keyword in self.scam_keywords:
-            if keyword in message_lower:
-                keyword_count += 1
-        
-        if keyword_count >= 4:
-            score = 90 # Increased from 80
-            reasons.append(f"High number of scam-related terms detected ({keyword_count})")
-        elif keyword_count >= 2:
-            score = 65 # Increased from 60
-            reasons.append(f"Potential scam indicators detected ({keyword_count})")
-        elif keyword_count >= 1:
-            score = 35 # Increased from 30
-        
-        # Check for money/payment requests
-        if any(word in message_lower for word in ['send money', 'wire funds', 'payment', 'transfer money', 'upi pin', 'otp']):
-            score += 25 # Increased from 20
-            reasons.append("Suspicious request for payment or sensitive credentials detected")
-        
-        return min(100.0, score)
-    
-    def _check_for_urls(self, message: str) -> bool:
-        """Check if message contains URLs."""
+    def _detect_category(self, message_lower: str) -> Tuple[str, List[str], str]:
+        """Pick the most likely scam taxonomy category."""
+        best_category = "safe"
+        best_score = 0
+        matched_keywords: List[str] = []
+        matched_red_flags: List[str] = []
+
+        for category_name in self.category_priority:
+            entry = self.taxonomy.get(category_name, {})
+            keywords = entry.get("keywords", [])
+            red_flags = entry.get("red_flags", [])
+
+            keyword_hits = [keyword for keyword in keywords if keyword.lower() in message_lower]
+            red_flag_hits = [flag for flag in red_flags if flag.lower() in message_lower]
+
+            score = (len(keyword_hits) * 2) + (len(red_flag_hits) * 4)
+            if score > best_score:
+                best_category = category_name
+                best_score = score
+                matched_keywords = keyword_hits
+                matched_red_flags = red_flag_hits
+
+        red_flag_text = ", ".join(matched_red_flags) if matched_red_flags else "No explicit taxonomy red flags matched"
+        if best_score == 0:
+            return "safe", [], red_flag_text
+        return best_category, matched_keywords, red_flag_text
+
+    def _score_terms(self, message_lower: str, terms: List[str], max_score: float) -> Tuple[float, List[str]]:
+        """Return a simple score based on matched terms."""
+        hits = [term for term in terms if term in message_lower]
+        if not hits:
+            return 0.0, []
+        score = min(max_score, 8.0 * len(hits))
+        return score, hits
+
+    def _flag_terms(self, message_lower: str, terms: List[str]) -> Tuple[bool, List[str]]:
+        """Return whether any term is present and the matched terms."""
+        hits = [term for term in terms if term in message_lower]
+        return bool(hits), hits
+
+    def _has_suspicious_link(self, message_lower: str) -> bool:
+        """Detect a link that should be treated as suspicious."""
         import re
-        url_pattern = r'https?://\S+|www\.\S+'
-        return bool(re.search(url_pattern, message, re.IGNORECASE))
+
+        link_pattern = r"https?://\S+|www\.\S+|bit\.ly|tinyurl\.com|goo\.gl|shorturl"
+        return bool(re.search(link_pattern, message_lower, re.IGNORECASE))
+
+    def _has_reward_promise(self, message_lower: str) -> bool:
+        """Detect suspicious reward/lottery-style promises."""
+        reward_terms = [
+            "you won",
+            "claim your prize",
+            "lottery",
+            "reward",
+            "cash prize",
+            "free gift",
+            "selected winner",
+            "bonus amount",
+        ]
+        return any(term in message_lower for term in reward_terms)
+
+    def _category_from_signals(self, urgency_score: float, authority_score: float, deception_score: float) -> str:
+        """Fallback category when taxonomy did not match exactly."""
+        if authority_score >= urgency_score and authority_score >= deception_score:
+            return "authority_impersonation"
+        if deception_score >= urgency_score:
+            return "lottery_scam"
+        return "job_scam"
+
+    def _unique_keep_order(self, items: List[str]) -> List[str]:
+        """Remove duplicates without changing order."""
+        seen = set()
+        unique_items = []
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                unique_items.append(item)
+        return unique_items

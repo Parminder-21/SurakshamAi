@@ -26,10 +26,12 @@ def test_message_analysis():
     
     for msg in test_messages:
         print(f"\n📧 Message: {msg[:80]}...")
-        category, score, reasons = agent.analyze(msg)
-        print(f"   Category: {category}")
-        print(f"   Risk Score: {score:.1f}")
-        print(f"   Reasons: {reasons}")
+        result = agent.analyze(msg)
+        print(f"   Category: {result['category']}")
+        print(f"   Risk Score: {result['risk_score']:.1f}")
+        print(f"   Severity: {result['severity']}")
+        print(f"   Reasons: {result['reasons']}")
+        print(f"   Matched Keywords: {result['matched_keywords']}")
 
 
 def test_url_analysis():
@@ -49,10 +51,12 @@ def test_url_analysis():
     
     for url in test_urls:
         print(f"\n🔗 URL: {url}")
-        category, score, reasons = agent.analyze(url)
-        print(f"   Category: {category}")
-        print(f"   Risk Score: {score:.1f}")
-        print(f"   Reasons: {reasons}")
+        result = agent.analyze(url)
+        print(f"   Category: {result['category']}")
+        print(f"   Risk Score: {result['risk_score']:.1f}")
+        print(f"   Severity: {result['severity']}")
+        print(f"   Reasons: {result['reasons']}")
+        print(f"   Matched Keywords: {result['matched_keywords']}")
 
 
 def test_risk_engine():

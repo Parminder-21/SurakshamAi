@@ -25,6 +25,7 @@ class RiskAnalysisResponse(BaseModel):
     severity: str = Field(..., description="Severity level (LOW, MEDIUM, HIGH, CRITICAL)")
     reasons: List[str] = Field(default_factory=list, description="List of reasons for the risk assessment")
     advice: str = Field(..., description="Actionable advice for the user")
+    scrubbed_text: Optional[str] = Field(None, description="Scrubbed version of the analyzed message or URL")
     timestamp: str = Field(..., description="ISO format timestamp of analysis")
 
 
