@@ -143,10 +143,12 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
         url_str = scrub_sensitive_data(str(request.url))
         
         # Analyze the URL
-        category, risk_score, reasons = url_agent.analyze(url_str)
-
-        # Calculate severity
-        severity = _simple_severity_label(risk_score)
+        analysis = url_agent.analyze(url_str)
+        category = analysis["category"]
+        risk_score = analysis["risk_score"]
+        reasons = analysis["reasons"]
+        severity = analysis["severity"]
+        suspicious_flags = analysis["flags"]
 
         # Keep URL guidance short and action-focused too.
         advice = guidance_agent.get_detailed_guidance(
@@ -165,6 +167,8 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
             severity=severity,
             reasons=scrubbed_reasons,
             advice=advice,
+            url=str(request.url),
+            suspicious_flags=suspicious_flags,
             scrubbed_text=url_str,
             timestamp=datetime.utcnow().isoformat(),
         )

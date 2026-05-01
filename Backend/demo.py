@@ -56,7 +56,7 @@ def test_url_analysis():
         print(f"   Risk Score: {result['risk_score']:.1f}")
         print(f"   Severity: {result['severity']}")
         print(f"   Reasons: {result['reasons']}")
-        print(f"   Matched Keywords: {result['matched_keywords']}")
+        print(f"   Flags: {result['flags']}")
 
 
 def test_risk_engine():

@@ -22,9 +22,11 @@ class RiskAnalysisResponse(BaseModel):
     """Response model for risk analysis results."""
     category: str = Field(..., description="Category of risk (e.g., phishing, scam, malware, spam)")
     risk_score: float = Field(..., ge=0, le=100, description="Risk score from 0-100")
-    severity: str = Field(..., description="Severity level (LOW, MEDIUM, HIGH, CRITICAL)")
+    severity: str = Field(..., description="Severity level (safe, suspicious, high_risk)")
     reasons: List[str] = Field(default_factory=list, description="List of reasons for the risk assessment")
     advice: str = Field(..., description="Actionable advice for the user")
+    url: Optional[str] = Field(None, description="Original or analyzed URL for URL analyses")
+    suspicious_flags: List[str] = Field(default_factory=list, description="Suspicious URL flags for URL analyses")
     scrubbed_text: Optional[str] = Field(None, description="Scrubbed version of the analyzed message or URL")
     timestamp: str = Field(..., description="ISO format timestamp of analysis")
 
