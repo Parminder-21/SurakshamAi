@@ -1,0 +1,276 @@
+# Architecture Overview
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Client Application                       │
+│            (Web, Mobile, CLI, Third-party Services)         │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         │ HTTP/REST
+         │
+┌────────▼────────────────────────────────────────────────────┐
+│                  FastAPI Web Server                          │
+│                       main.py                                │
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Request Handlers                        │   │
+│  │  ├─ GET  /health                                    │   │
+│  │  ├─ POST /analyze-message                           │   │
+│  │  └─ POST /analyze-url                               │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                         │                                     │
+│  ┌──────────────────────▼──────────────────────────────┐   │
+│  │            Input Validation                         │   │
+│  │              (models.py)                             │   │
+│  │                                                      │   │
+│  │  • AnalyzeMessageRequest                           │   │
+│  │  • AnalyzeUrlRequest                               │   │
+│  │  • RiskAnalysisResponse (Pydantic Models)          │   │
+│  └──────────────────────┬──────────────────────────────┘   │
+│                         │                                     │
+│         ┌───────────────┼───────────────┐                    │
+│         │               │               │                    │
+│  ┌──────▼──────┐  ┌─────▼────────┐  ┌──▼─────────────┐    │
+│  │MessageAgent │  │  URLAgent    │  │RiskEngine     │    │
+│  │             │  │              │  │               │    │
+│  │• Phishing   │  │• Domain      │  │• Score calc   │    │
+│  │  detection  │  │  analysis    │  │• Severity     │    │
+│  │• Scam       │  │• Malware     │  │  mapping      │    │
+│  │  detection  │  │  detection   │  │• Advice       │    │
+│  │• Patterns   │  │• IP check    │  │  generation   │    │
+│  └──────┬──────┘  └─────┬────────┘  └──┬────────────┘    │
+│         │               │               │                   │
+│         └───────────────┼───────────────┘                   │
+│                         │                                     │
+│                  ┌──────▼──────────┐                         │
+│                  │GuidanceAgent    │                         │
+│                  │                 │                         │
+│                  │• Detailed tips  │                         │
+│                  │• Category-based │                         │
+│                  │  advice         │                         │
+│                  └────────┬────────┘                         │
+│                           │                                   │
+│                  ┌────────▼────────┐                         │
+│                  │PrivacyScrubber  │                         │
+│                  │                 │                         │
+│                  │• Email removal  │                         │
+│                  │• Phone removal  │                         │
+│                  │• Card removal   │                         │
+│                  └────────┬────────┘                         │
+│                           │                                   │
+│  ┌────────────────────────▼───────────────────────────┐    │
+│  │        Response Construction                       │    │
+│  │                                                    │    │
+│  │  ┌─────────────────────────────────────────────┐ │    │
+│  │  │ RiskAnalysisResponse (JSON)                │ │    │
+│  │  │ {                                          │ │    │
+│  │  │   "category": "phishing|scam|malware|...", │ │    │
+│  │  │   "risk_score": 0-100,                    │ │    │
+│  │  │   "severity": "LOW|MEDIUM|HIGH|CRITICAL",│ │    │
+│  │  │   "reasons": [...],                       │ │    │
+│  │  │   "advice": "...",                        │ │    │
+│  │  │   "timestamp": "ISO-8601"                 │ │    │
+│  │  │ }                                         │ │    │
+│  │  └─────────────────────────────────────────────┘ │    │
+│  └────────────────────────┬───────────────────────────┘    │
+└─────────────────────────┬─────────────────────────────────┘
+                          │
+                          │ HTTP Response (JSON)
+                          │
+┌─────────────────────────▼─────────────────────────────────┐
+│                     Client Application                      │
+│                   Receives Analysis Results                 │
+└──────────────────────────────────────────────────────────┘
+```
+
+## Data Flow Diagrams
+
+### Message Analysis Flow
+
+```
+User Input
+    │
+    ▼
+POST /analyze-message
+    │
+    ├─→ Validate Input (Pydantic)
+    │
+    ├─→ MessageAgent.analyze()
+    │   ├─→ Check Phishing Patterns
+    │   ├─→ Check Scam Patterns
+    │   ├─→ Check URLs
+    │   ├─→ Check Sensitive Data
+    │   └─→ Return (category, risk_score, reasons)
+    │
+    ├─→ RiskEngine.calculate_severity()
+    │   └─→ Map score to CRITICAL|HIGH|MEDIUM|LOW
+    │
+    ├─→ RiskEngine.get_advice()
+    │   └─→ Generate category-specific advice
+    │
+    ├─→ PrivacyScrubber.scrub_sensitive_data()
+    │   └─→ Clean reasons (remove emails, phones, etc.)
+    │
+    ├─→ Construct RiskAnalysisResponse
+    │
+    └─→ Return JSON Response
+```
+
+### URL Analysis Flow
+
+```
+User Input (URL)
+    │
+    ▼
+POST /analyze-url
+    │
+    ├─→ Validate Input (Pydantic + HttpUrl)
+    │
+    ├─→ URLAgent.analyze()
+    │   ├─→ Parse URL (domain, path, etc.)
+    │   ├─→ Check Domain Reputation
+    │   │   ├─→ Shortener detection
+    │   │   └─→ Hyphen analysis
+    │   ├─→ Check File Extensions
+    │   │   └─→ Identify .exe, .bat, etc.
+    │   ├─→ Check URL Characteristics
+    │   │   ├─→ Subdomain count
+    │   │   ├─→ IP address detection
+    │   │   ├─→ URL length check
+    │   │   └─→ Encoding analysis
+    │   └─→ Return (category, risk_score, reasons)
+    │
+    ├─→ RiskEngine.calculate_severity()
+    │
+    ├─→ RiskEngine.get_advice()
+    │
+    ├─→ Construct RiskAnalysisResponse
+    │
+    └─→ Return JSON Response
+```
+
+## Module Dependencies
+
+```
+main.py (FastAPI App)
+├─ models.py (Pydantic Models)
+├─ message_agent.py
+│  ├─ risk_engine.py
+│  └─ privacy_scrubber.py
+├─ url_agent.py
+│  └─ risk_engine.py
+├─ risk_engine.py
+└─ guidance_agent.py
+```
+
+## Analysis Score Calculation
+
+```
+┌─────────────────────────────────────┐
+│     Individual Check Scores         │
+│  • Phishing check: 0-100            │
+│  • Scam check: 0-100                │
+│  • Malware check: 0-100             │
+│  • Sensitive data: 0-100            │
+│  • Other patterns: 0-100            │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ Combine Scores       │
+    │ (Weighted Average)   │
+    │ 70% avg + 30% max    │
+    └──────────┬───────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ Final Risk Score     │
+    │ (0-100)              │
+    └──────────┬───────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ Determine Severity   │
+    │ CRITICAL: 80-100     │
+    │ HIGH:     60-79      │
+    │ MEDIUM:   40-59      │
+    │ LOW:      0-39       │
+    └──────────┬───────────┘
+               │
+               ▼
+    ┌──────────────────────┐
+    │ Generate Advice      │
+    │ (Category + Severity)│
+    └──────────────────────┘
+```
+
+## Deployment Architecture (Future)
+
+```
+└─ Container (Docker)
+   └─ FastAPI App (Port 8000)
+      ├─ Message Analysis Service
+      ├─ URL Analysis Service
+      ├─ Risk Engine Service
+      └─ Guidance Service
+      
+         (Future enhancements)
+         ├─ Redis Cache
+         ├─ PostgreSQL DB
+         └─ ML Model Service
+```
+
+## Technology Stack Diagram
+
+```
+┌─────────────────────────────────────┐
+│       Application Layer             │
+│  FastAPI (Web Framework)            │
+│  Pydantic (Validation)              │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│       Execution Layer               │
+│  Python 3.8+                        │
+│  Standard Library (re, urllib)      │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│       Server Layer                  │
+│  Uvicorn (ASGI Server)              │
+└─────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│       Network Layer                 │
+│  HTTP/HTTPS                         │
+└─────────────────────────────────────┘
+```
+
+## Error Handling Flow
+
+```
+Request
+  │
+  ├─ Validation Error (422)
+  │  └─→ Return validation details
+  │
+  ├─ Empty Message/URL (400)
+  │  └─→ Return error message
+  │
+  ├─ Processing Error (500)
+  │  ├─→ Log error
+  │  └─→ Return generic error message
+  │
+  └─ Success (200)
+     └─→ Return RiskAnalysisResponse
+```
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: May 1, 2026
