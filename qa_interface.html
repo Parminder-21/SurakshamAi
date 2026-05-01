@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suraksha Agent | Security Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --glass: rgba(30, 41, 59, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: radial-gradient(circle at 50% -20%, #1e293b, #0f172a);
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 850px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        textarea, input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:active { transform: translateY(0); }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-safe { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-suspicious { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge-high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        .score-display {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .score-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            display: block;
+            line-height: 1;
+        }
+
+        .score-label {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-label { color: var(--text-dim); font-size: 0.9rem; }
+        .info-value { font-weight: 600; text-transform: capitalize; }
+
+        .reasons-list {
+            margin-top: 20px;
+        }
+
+        .reason-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .reason-item::before {
+            content: "•";
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .advice-box {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 4px solid var(--primary);
+        }
+
+        .advice-title {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .advice-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Suraksha Agent</h1>
+            <p class="subtitle">AI-Powered Cyber Safety Analysis</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <div class="input-group">
+                    <label for="inputType">Analysis Type</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" id="msgTypeBtn" style="flex:1;">Message</button>
+                        <button class="btn btn-secondary" id="urlTypeBtn" style="flex:1;">URL</button>
+                    </div>
+                </div>
+
+                <div id="messageInputGroup">
+                    <div class="input-group">
+                        <label for="message">Security Event Message</label>
+                        <textarea id="message" rows="6" placeholder="Enter the suspicious message here..."></textarea>
+                    </div>
+                </div>
+
+                <div id="urlInputGroup" class="hidden">
+                    <div class="input-group">
+                        <label for="url">Target URL</label>
+                        <input type="text" id="url" placeholder="https://example.com/login">
+                    </div>
+                </div>
+
+                <button class="btn" id="analyzeBtn">
+                    <span id="btnText">Analyze Threat</span>
+                    <div class="loader" id="loader"></div>
+                </button>
+            </div>
+
+            <div class="card" id="resultsCard">
+                <div id="emptyState" class="empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px; opacity: 0.3;">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <p>Enter a message or URL to start analysis</p>
+                </div>
+
+                <div id="resultsContent" class="hidden">
+                    <div class="results-header">
+                        <h3 id="resultCategory" style="text-transform: capitalize;">Phishing</h3>
+                        <span id="severityBadge" class="badge">Safe</span>
+                    </div>
+
+                    <div class="score-display">
+                        <span class="score-value" id="scoreValue">0.0</span>
+                        <span class="score-label">Risk Score (0-100)</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Severity</span>
+                        <span class="info-value" id="infoSeverity">safe</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Timestamp</span>
+                        <span class="info-value" id="infoTimestamp" style="font-size: 0.8rem;">-</span>
+                    </div>
+
+                    <div class="reasons-list" id="reasonsList">
+                        <!-- Reasons will appear here -->
+                    </div>
+
+                    <div class="advice-box">
+                        <div class="advice-title">Kya Karna Hai (Advice)</div>
+                        <p class="advice-text" id="adviceText">No immediate action required.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentType = 'message';
+        const msgBtn = document.getElementById('msgTypeBtn');
+        const urlBtn = document.getElementById('urlTypeBtn');
+        const msgGroup = document.getElementById('messageInputGroup');
+        const urlGroup = document.getElementById('urlInputGroup');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const btnText = document.getElementById('btnText');
+        const loader = document.getElementById('loader');
+        const emptyState = document.getElementById('emptyState');
+        const resultsContent = document.getElementById('resultsContent');
+
+        msgBtn.onclick = () => {
+            currentType = 'message';
+            msgBtn.classList.remove('btn-secondary');
+            urlBtn.classList.add('btn-secondary');
+            msgGroup.classList.remove('hidden');
+            urlGroup.classList.add('hidden');
+        };
+
+        urlBtn.onclick = () => {
+            currentType = 'url';
+            urlBtn.classList.remove('btn-secondary');
+            msgBtn.classList.add('btn-secondary');
+            urlGroup.classList.remove('hidden');
+            msgGroup.classList.add('hidden');
+        };
+
+        analyzeBtn.onclick = async () => {
+            const data = {};
+            let endpoint = '';
+
+            if (currentType === 'message') {
+                data.message = document.getElementById('message').value;
+                endpoint = '/analyze-message';
+            } else {
+                data.url = document.getElementById('url').value;
+                endpoint = '/analyze-url';
+            }
+
+            if (!data.message && !data.url) return;
+
+            // UI Loading state
+            btnText.classList.add('hidden');
+            loader.style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000' + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Connection error. Is the backend running?');
+            } finally {
+                btnText.classList.remove('hidden');
+                loader.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        };
+
+        function displayResults(data) {
+            emptyState.classList.add('hidden');
+            resultsContent.classList.remove('hidden');
+
+            document.getElementById('resultCategory').innerText = data.category.replace(/_/g, ' ');
+            document.getElementById('scoreValue').innerText = data.risk_score.toFixed(1);
+            document.getElementById('infoSeverity').innerText = data.severity.replace(/_/g, ' ');
+            document.getElementById('infoTimestamp').innerText = new Date(data.timestamp).toLocaleString();
+            document.getElementById('adviceText').innerText = data.advice;
+
+            // Set Severity Badge
+            const badge = document.getElementById('severityBadge');
+            badge.innerText = data.severity.replace(/_/g, ' ');
+            badge.className = 'badge';
+            if (data.severity === 'safe') badge.classList.add('badge-safe');
+            else if (data.severity === 'suspicious') badge.classList.add('badge-suspicious');
+            else badge.classList.add('badge-high');
+
+            // Set Reasons
+            const reasonsList = document.getElementById('reasonsList');
+            reasonsList.innerHTML = '';
+            if (data.reasons && data.reasons.length > 0) {
+                data.reasons.forEach(reason => {
+                    const item = document.createElement('div');
+                    item.className = 'reason-item';
+                    item.innerText = reason;
+                    reasonsList.appendChild(item);
+                });
+            } else {
+                reasonsList.innerHTML = '<p style="color: var(--text-dim); font-size: 0.9rem;">No specific threats identified.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

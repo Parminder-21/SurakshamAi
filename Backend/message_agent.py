@@ -140,7 +140,10 @@ class MessageAgent:
             reasons.append("Suspicious reward promise detected")
         if contains_sensitive_data(text):
             reasons.append("Sensitive personal data present in the message")
-            deception_score = max(deception_score, 15.0)
+            deception_score = max(deception_score, 25.0)
+
+        # Signal if any scam category was matched by taxonomy
+        category_match = (category != "safe")
 
         # Keep output deterministic and easy to explain.
         risk_score, severity = self.risk_engine.calculate_risk_score(
@@ -150,6 +153,7 @@ class MessageAgent:
             payment_pressure=payment_pressure,
             suspicious_link=suspicious_link,
             otp_request=otp_request,
+            category_match=category_match,
         )
 
         if suspicious_link:

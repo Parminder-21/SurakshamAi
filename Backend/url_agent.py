@@ -137,7 +137,7 @@ class URLAgent:
             )
 
         risk_score = self.risk_engine.combine_scores(scores)
-        severity = self._score_to_severity(risk_score)
+        severity = self.risk_engine.calculate_severity(risk_score)
         category = self._select_category(flags, reasons)
 
         return self._build_result(
@@ -270,13 +270,6 @@ class URLAgent:
             return "suspicious_url"
         return "suspicious_url"
 
-    def _score_to_severity(self, risk_score: float) -> str:
-        """Map a score to the simple labels used in the app."""
-        if risk_score >= 65:
-            return "high_risk"
-        if risk_score >= 25:
-            return "suspicious"
-        return "safe"
 
     def _build_result(
         self,

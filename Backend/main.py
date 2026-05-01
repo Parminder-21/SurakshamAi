@@ -42,13 +42,6 @@ risk_engine = RiskEngine()
 guidance_agent = GuidanceAgent()
 
 
-def _simple_severity_label(risk_score: float) -> str:
-    """Map a numeric score to the simple labels used in the frontend response."""
-    if risk_score >= 65:
-        return "high_risk"
-    if risk_score >= 25:
-        return "suspicious"
-    return "safe"
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -92,7 +85,7 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
         category = analysis["category"]
         risk_score = analysis["risk_score"]
         reasons = analysis["reasons"]
-        severity = _simple_severity_label(risk_score)
+        severity = risk_engine.calculate_severity(risk_score)
 
         # Guidance agent returns short, action-focused advice.
         advice = guidance_agent.get_detailed_guidance(
