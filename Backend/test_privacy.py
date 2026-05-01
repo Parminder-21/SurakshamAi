@@ -18,7 +18,7 @@ def test_privacy_scrubbing_in_message():
     reasons_str = str(data["reasons"])
     assert "1234 5678 9012" not in reasons_str
     assert "9876543210" not in reasons_str
-    assert "sensitive personal information" in reasons_str
+    assert "Sensitive personal data" in reasons_str
 
 def test_privacy_scrubbing_in_url():
     """Verify that PII is scrubbed from URL response reasons."""

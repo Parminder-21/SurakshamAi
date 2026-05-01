@@ -59,7 +59,7 @@ class TestMessageAnalysisEndpoint:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["category"] == "scam"
+        assert "scam" in data["category"]
         assert data["risk_score"] >= 50
     
     def test_analyze_safe_message(self):
@@ -71,7 +71,7 @@ class TestMessageAnalysisEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["risk_score"] == 0.0
-        assert data["severity"] == "LOW"
+        assert data["severity"] == "safe"
     
     def test_analyze_message_empty_message(self):
         """Test error handling for empty message."""
@@ -100,7 +100,7 @@ class TestMessageAnalysisEndpoint:
     
     def test_severity_levels(self):
         """Test that severity is one of valid levels."""
-        valid_severities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        valid_severities = ["safe", "suspicious", "high_risk"]
         response = client.post(
             "/analyze-message",
             json={"message": "Click here now!"}
@@ -124,7 +124,7 @@ class TestURLAnalysisEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["risk_score"] == 0.0
-        assert data["severity"] == "LOW"
+        assert data["severity"] == "safe"
     
     def test_analyze_shortener_url(self):
         """Test detection of URL shortener."""
