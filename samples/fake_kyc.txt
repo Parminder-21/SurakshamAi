@@ -1,0 +1,5 @@
+Dear customer, your bank KYC has expired.
+Update KYC within 30 minutes to avoid account suspension.
+Upload Aadhaar and PAN here: http://secure-kyc-update.co.in/verify
+Enter OTP after upload to complete verification.
+Failure to comply will freeze your account.

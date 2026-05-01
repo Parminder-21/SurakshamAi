@@ -13,11 +13,6 @@ from models import (
     RiskAnalysisResponse,
     HealthResponse,
 )
-from message_agent import MessageAgent
-from url_agent import URLAgent
-from risk_engine import RiskEngine
-from guidance_agent import GuidanceAgent
-from privacy_scrubber import scrub_sensitive_data
 from orchestrator import analyze_input
 
 # Initialize FastAPI app
@@ -35,15 +30,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize agents and engines
-message_agent = MessageAgent()
-url_agent = URLAgent()
-risk_engine = RiskEngine()
-guidance_agent = GuidanceAgent()
-
-
-
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
@@ -77,35 +63,15 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
         # Validate input
         if not request.message or not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
-        
-        # P0 FIX: Scrub input BEFORE analysis
-        scrubbed_message = scrub_sensitive_data(request.message)
-        
-        # Analyze the message
-        analysis = message_agent.analyze(scrubbed_message)
-        category = analysis["category"]
-        risk_score = analysis["risk_score"]
-        reasons = analysis["reasons"]
-        severity = risk_engine.calculate_severity(risk_score)
-
-        # Guidance agent returns short, action-focused advice.
-        advice = guidance_agent.get_detailed_guidance(
-            category=category,
-            risk_score=risk_score,
-            severity=severity,
-            reasons=reasons,
-        )
-
-        # Scrub sensitive data from reasons for privacy (double-check)
-        scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
+        result = analyze_input(request.message, input_type="message")
         
         return RiskAnalysisResponse(
-            category=category,
-            risk_score=round(risk_score, 2),
-            severity=severity,
-            reasons=scrubbed_reasons,
-            advice=advice,
-            scrubbed_text=scrubbed_message,
+            category=result.get("detected_category", "safe"),
+            risk_score=round(float(result.get("risk_score", 0.0)), 2),
+            severity=result.get("severity", "safe"),
+            reasons=result.get("reasons", []),
+            advice=result.get("advice", ""),
+            scrubbed_text=result.get("scrubbed_text", ""),
             timestamp=datetime.utcnow().isoformat(),
         )
     
@@ -133,37 +99,18 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
         HTTPException: If URL is invalid or analysis fails
     """
     try:
-        # P0 FIX: Scrub input BEFORE analysis
-        url_str = scrub_sensitive_data(str(request.url))
-        
-        # Analyze the URL
-        analysis = url_agent.analyze(url_str)
-        category = analysis["category"]
-        risk_score = analysis["risk_score"]
-        reasons = analysis["reasons"]
-        severity = analysis["severity"]
-        suspicious_flags = analysis["flags"]
-
-        # Keep URL guidance short and action-focused too.
-        advice = guidance_agent.get_detailed_guidance(
-            category=category,
-            risk_score=risk_score,
-            severity=severity,
-            reasons=reasons,
-        )
-        
-        # P1 FIX: Scrub sensitive data from reasons for privacy
-        scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
+        raw_url = str(request.url)
+        result = analyze_input(raw_url, input_type="url")
         
         return RiskAnalysisResponse(
-            category=category,
-            risk_score=round(risk_score, 2),
-            severity=severity,
-            reasons=scrubbed_reasons,
-            advice=advice,
-            url=str(request.url),
-            suspicious_flags=suspicious_flags,
-            scrubbed_text=url_str,
+            category=result.get("detected_category", "safe"),
+            risk_score=round(float(result.get("risk_score", 0.0)), 2),
+            severity=result.get("severity", "safe"),
+            reasons=result.get("reasons", []),
+            advice=result.get("advice", ""),
+            url=raw_url,
+            suspicious_flags=result.get("suspicious_flags", []),
+            scrubbed_text=result.get("scrubbed_text", ""),
             timestamp=datetime.utcnow().isoformat(),
         )
     
@@ -235,6 +182,7 @@ async def analyze_unified(request: AnalyzeMessageRequest | AnalyzeUrlRequest) ->
             advice=result.get("advice", ""),
             scrubbed_text=result.get("scrubbed_text", ""),
             url=raw_text if input_type == "url" else None,
+            suspicious_flags=result.get("suspicious_flags", []),
             timestamp=datetime.utcnow().isoformat(),
         )
     
