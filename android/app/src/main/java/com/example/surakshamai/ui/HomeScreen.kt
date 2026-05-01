@@ -18,15 +18,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.surakshamai.ui.theme.SurakshamAiTheme
+import com.example.surakshamai.viewmodel.AnalysisUiState
+import com.example.surakshamai.viewmodel.AnalysisViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    viewModel: AnalysisViewModel = viewModel(),
+    onNavigateToResult: () -> Unit = {}
+) {
     // Beginner-friendly state management using remember and mutableStateOf
     var messageText by remember { mutableStateOf("") }
     var urlText by remember { mutableStateOf("") }
-    var isAnalyzing by remember { mutableStateOf(false) }
+    
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Navigate when success
+    LaunchedEffect(uiState) {
+        if (uiState is AnalysisUiState.Success) {
+            onNavigateToResult()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -116,19 +130,28 @@ fun HomeScreen() {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Error Message
+                    if (uiState is AnalysisUiState.Error) {
+                        Text(
+                            text = (uiState as AnalysisUiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
                     // Analyze Button
                     Button(
                         onClick = { 
-                            isAnalyzing = true
-                            // Logic for analysis goes here
+                            viewModel.analyze(messageText, urlText)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = messageText.isNotBlank() || urlText.isNotBlank()
+                        enabled = (messageText.isNotBlank() || urlText.isNotBlank()) && uiState !is AnalysisUiState.Loading
                     ) {
-                        if (isAnalyzing) {
+                        if (uiState is AnalysisUiState.Loading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = MaterialTheme.colorScheme.onPrimary,

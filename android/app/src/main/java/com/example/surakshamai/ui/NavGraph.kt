@@ -12,7 +12,7 @@ import com.example.surakshamai.viewmodel.AnalysisViewModel
 
 @Composable
 fun SurakshaNavGraph(
-    viewModel: AnalysisViewModel = viewModel()
+    viewModel: AnalysisViewModel = viewModel(),
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
@@ -24,10 +24,9 @@ fun SurakshaNavGraph(
         composable("home") {
             HomeScreen(
                 viewModel = viewModel,
-                onNavigateToResult = {
-                    navController.navigate("result")
-                }
-            )
+            ) {
+                navController.navigate("result")
+            }
         }
         composable("result") {
             when (val state = uiState) {

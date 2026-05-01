@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.surakshamai.ui.HomeScreen
+import com.example.surakshamai.ui.SurakshaNavGraph
 import com.example.surakshamai.ui.theme.SurakshamAiTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SurakshamAiTheme {
-                HomeScreen()
+                SurakshaNavGraph()
             }
         }
     }
