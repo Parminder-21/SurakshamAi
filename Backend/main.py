@@ -77,8 +77,11 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
         if not request.message or not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
         
+        # P0 FIX: Scrub input BEFORE analysis
+        scrubbed_message = scrub_sensitive_data(request.message)
+        
         # Analyze the message
-        category, risk_score, reasons = message_agent.analyze(request.message)
+        category, risk_score, reasons = message_agent.analyze(scrubbed_message)
         
         # Calculate severity
         severity = risk_engine.calculate_severity(risk_score)
@@ -86,7 +89,7 @@ async def analyze_message(request: AnalyzeMessageRequest) -> RiskAnalysisRespons
         # Generate advice
         advice = risk_engine.get_advice(category, risk_score, severity)
         
-        # Scrub sensitive data from reasons for privacy
+        # Scrub sensitive data from reasons for privacy (double-check)
         scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
         
         return RiskAnalysisResponse(
@@ -122,8 +125,10 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
         HTTPException: If URL is invalid or analysis fails
     """
     try:
+        # P0 FIX: Scrub input BEFORE analysis
+        url_str = scrub_sensitive_data(str(request.url))
+        
         # Analyze the URL
-        url_str = str(request.url)
         category, risk_score, reasons = url_agent.analyze(url_str)
         
         # Calculate severity
@@ -132,11 +137,14 @@ async def analyze_url(request: AnalyzeUrlRequest) -> RiskAnalysisResponse:
         # Generate advice
         advice = risk_engine.get_advice(category, risk_score, severity)
         
+        # P1 FIX: Scrub sensitive data from reasons for privacy
+        scrubbed_reasons = [scrub_sensitive_data(reason) for reason in reasons]
+        
         return RiskAnalysisResponse(
             category=category,
             risk_score=round(risk_score, 2),
             severity=severity,
-            reasons=reasons,
+            reasons=scrubbed_reasons,
             advice=advice,
             timestamp=datetime.utcnow().isoformat(),
         )

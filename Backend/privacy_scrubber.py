@@ -47,12 +47,16 @@ def scrub_sensitive_data(text: str) -> str:
 
 def contains_sensitive_data(text: str) -> bool:
     """
-    Check presence of any supported sensitive data patterns.
+    Check presence of any supported sensitive data patterns or redaction tags.
 
-    Returns True if any known pattern is found.
+    Returns True if any known pattern or tag is found.
     """
     if not text:
         return False
+
+    # Check for redaction tags first
+    if any(tag in text for tag in ["[Aadhaar Redacted]", "[PAN Redacted]", "[Phone Redacted]", "[Email Redacted]"]):
+        return True
 
     checks = [
         re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", re.IGNORECASE),

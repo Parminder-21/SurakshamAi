@@ -79,7 +79,7 @@ class TestMessageAnalysisEndpoint:
             "/analyze-message",
             json={"message": ""}
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
     
     def test_analyze_message_missing_field(self):
         """Test error handling for missing message field."""

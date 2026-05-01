@@ -10,12 +10,12 @@ class RiskEngine:
     Engine to evaluate and score risks.
     """
     
-    # Risk threshold mappings
+    # Risk threshold mappings (0-100)
     SEVERITY_THRESHOLDS = {
-        'CRITICAL': 80,
-        'HIGH': 60,
-        'MEDIUM': 40,
-        'LOW': 0,
+        'CRITICAL': 80.0,
+        'HIGH': 60.0,
+        'MEDIUM': 35.0,
+        'LOW': 0.0,
     }
     
     @staticmethod
@@ -57,12 +57,11 @@ class RiskEngine:
         if len(scores) == 1:
             return min(100.0, max(0.0, scores[0]))
         
-        # Simple average with boost for high scores
-        avg_score = sum(scores) / len(scores)
+        # Give 60% weight to max score, 40% to average (more aggressive than before)
         max_score = max(scores)
+        avg_score = sum(scores) / len(scores)
         
-        # Give 70% weight to average, 30% weight to max (to catch critical issues)
-        combined = (avg_score * 0.7) + (max_score * 0.3)
+        combined = (max_score * 0.6) + (avg_score * 0.4)
         
         return min(100.0, max(0.0, combined))
     
@@ -126,27 +125,7 @@ class RiskEngine:
     ) -> Tuple[float, str]:
         """
         Simple, explainable risk scoring function.
-
-        Inputs (expected range 0-100 for scores):
-        - urgency_score: How urgent the message sounds (0-100)
-        - authority_score: Apparent authority / impersonation strength (0-100)
-        - deception_score: How deceptive the language is (0-100)
-        - payment_pressure: True if the message pressures for payment
-        - suspicious_link: True if a suspicious link is present
-        - otp_request: True if the message requests an OTP
-
-        Logic (easy to explain):
-        1. Compute base = average of the three input numeric scores.
-        2. Add fixed, transparent bonuses for high-risk flags:
-           - payment_pressure: +20
-           - suspicious_link: +25
-           - otp_request: +30
-        3. Cap final score to 0-100.
-        4. Map to simple severity labels: safe, suspicious, high_risk
-
-        Returns:
-        - risk_score (0-100)
-        - severity label (safe | suspicious | high_risk)
+        Returns: (risk_score, severity_label)
         """
         # Normalize inputs to valid range
         def _clamp(v: float) -> float:
@@ -170,19 +149,13 @@ class RiskEngine:
         if suspicious_link:
             bonus += 25.0
         if otp_request:
-            bonus += 30.0
+            bonus += 35.0 # Increased from 30 to make it more critical
 
         raw_score = base + bonus
+        risk_score = round(max(0.0, min(100.0, raw_score)), 2)
 
-        # Step 3: cap to 0-100
-        risk_score = max(0.0, min(100.0, raw_score))
+        # Step 3: Use unified severity mapping
+        severity = RiskEngine.calculate_severity(risk_score)
 
-        # Step 4: simple severity mapping (very explainable)
-        if risk_score >= 65.0:
-            severity = 'high_risk'
-        elif risk_score >= 25.0:
-            severity = 'suspicious'
-        else:
-            severity = 'safe'
+        return (risk_score, severity)
 
-        return (round(risk_score, 2), severity)
