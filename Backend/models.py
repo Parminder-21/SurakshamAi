@@ -35,3 +35,33 @@ class HealthResponse(BaseModel):
     """Response model for health check."""
     status: str = Field(..., description="Status of the service")
     version: str = Field(..., description="API version")
+
+class AnalyzeCallRequest(BaseModel):
+    """Request model for call summary analysis."""
+    call_summary: str = Field(..., min_length=1, max_length=5000, description="The summary or transcript of the call")
+    user_id: Optional[str] = Field(None, description="Optional user identifier")
+
+class ReportScamRequest(BaseModel):
+    """Request model for community scam reporting."""
+    content: str = Field(..., description="The message, URL, or call summary being reported")
+    category: str = Field(..., description="The scam category reported by the user")
+    evidence: Optional[str] = Field(None, description="Any additional context or evidence")
+    user_id: Optional[str] = Field(None, description="Optional user identifier")
+
+class SubmitSampleRequest(BaseModel):
+    """Request model for submitting data for training."""
+    scrubbed_content: str = Field(..., description="The already scrubbed message or URL")
+    label: str = Field(..., description="The known true scam category")
+
+class NewsFeedArticle(BaseModel):
+    """Model for a single trending scam article."""
+    id: str
+    title: str
+    category: str
+    description: str
+    reported_count: int
+    date: str
+
+class NewsFeedResponse(BaseModel):
+    """Response model for trending scams feed."""
+    articles: List[NewsFeedArticle]

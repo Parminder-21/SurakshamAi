@@ -25,3 +25,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "SurakshamAi"
 include(":app")
+include(":app")
+ 

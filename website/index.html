@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suraksha Agent | The Radar</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-effects">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
+    <nav class="glass-nav">
+        <div class="nav-brand">
+            <span class="logo-icon">🛡️</span>
+            <h1>Suraksha Agent</h1>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#home" class="active">Home</a></li>
+            <li><a href="#radar">The Radar</a></li>
+            <li><a href="#report" class="btn-primary-small">Report a Scam</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="home" class="hero">
+            <div class="hero-content">
+                <h2 class="animate-up">Your AI-Powered <br><span class="gradient-text">Cyber Safety Companion</span></h2>
+                <p class="subtitle animate-up delay-1">Every 4 minutes, an Indian loses money to a digital scam. Don't be next. Our AI analyzes messages, URLs, and calls to protect you before you fall victim.</p>
+                <div class="cta-group animate-up delay-2">
+                    <a href="#radar" class="btn-primary">View Trending Scams</a>
+                    <a href="#how-it-works" class="btn-secondary">How it Works</a>
+                </div>
+            </div>
+            <div class="hero-visual animate-fade-in">
+                <div class="glass-card status-card">
+                    <div class="status-header">
+                        <span class="pulse-dot red"></span>
+                        <h3>Live Analysis</h3>
+                    </div>
+                    <div class="mock-message">
+                        <p>"Dear Customer, your electricity bill is unpaid. Pay immediately via this link..."</p>
+                    </div>
+                    <div class="analysis-result high-risk">
+                        <h4>HIGH RISK - 82/100</h4>
+                        <p>Type: Electricity Bill Scam</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="radar" class="radar-section">
+            <div class="section-header">
+                <h2>The Radar</h2>
+                <p>Live feed of trending scams reported across India</p>
+            </div>
+            
+            <div class="feed-container" id="news-feed-container">
+                <!-- Javascript will populate this with /news-feed from Backend -->
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Fetching latest scam intelligence...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="report" class="report-section">
+            <div class="glass-card report-card">
+                <h2>Help Protect the Community</h2>
+                <p>Received a suspicious message? Report it here to train our AI and warn others.</p>
+                <form id="report-form">
+                    <div class="form-group">
+                        <label for="scam-category">Scam Category</label>
+                        <select id="scam-category" required>
+                            <option value="fake_kyc">Fake KYC</option>
+                            <option value="electricity_bill_scam">Electricity Bill</option>
+                            <option value="courier_scam">Courier / Customs</option>
+                            <option value="job_scam">Job Fraud</option>
+                            <option value="upi_collect_request_scam">UPI Collect Request</option>
+                            <option value="lottery_scam">Lottery / Winner</option>
+                            <option value="authority_impersonation">Authority Impersonation</option>
+                            <option value="otp_theft">OTP Theft</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scam-content">Suspicious Message / Link</label>
+                        <textarea id="scam-content" rows="4" placeholder="Paste the message or link here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary w-full">Submit Report</button>
+                    <div id="report-status" class="status-message"></div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Built for the Agentic AI Hackathon by Microsoft</p>
+        <p class="disclaimer">Protecting India's 900M+ Smartphone Users | Privacy-First Design</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

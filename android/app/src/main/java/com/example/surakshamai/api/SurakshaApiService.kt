@@ -1,5 +1,6 @@
 package com.example.surakshamai.api
 
+import com.example.surakshamai.models.AnalyzeCallRequest
 import com.example.surakshamai.models.AnalyzeMessageRequest
 import com.example.surakshamai.models.AnalyzeUrlRequest
 import com.example.surakshamai.models.RiskAnalysisResponse
@@ -15,5 +16,10 @@ interface SurakshaApiService {
     @POST("/analyze-url")
     suspend fun analyzeUrl(
         @Body request: AnalyzeUrlRequest,
+    ): RiskAnalysisResponse
+
+    @POST("/analyze-call")
+    suspend fun analyzeCall(
+        @Body request: AnalyzeCallRequest,
     ): RiskAnalysisResponse
 }

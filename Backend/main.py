@@ -12,6 +12,11 @@ from models import (
     AnalyzeUrlRequest,
     RiskAnalysisResponse,
     HealthResponse,
+    AnalyzeCallRequest,
+    ReportScamRequest,
+    SubmitSampleRequest,
+    NewsFeedResponse,
+    NewsFeedArticle
 )
 from orchestrator import analyze_input
 
@@ -191,6 +196,60 @@ async def analyze_unified(request: AnalyzeMessageRequest | AnalyzeUrlRequest) ->
             status_code=500,
             detail=f"Error in unified analysis: {str(e)}"
         )
+
+
+@app.post("/analyze-call", response_model=RiskAnalysisResponse)
+async def analyze_call(request: AnalyzeCallRequest) -> RiskAnalysisResponse:
+    """Analyze a call transcript or summary."""
+    try:
+        # Reusing analyze_input as a placeholder for Call Context Agent
+        result = analyze_input(request.call_summary, input_type="message")
+        return RiskAnalysisResponse(
+            category=result.get("detected_category", "safe"),
+            risk_score=round(float(result.get("risk_score", 0.0)), 2),
+            severity=result.get("severity", "safe"),
+            reasons=result.get("reasons", []),
+            advice=result.get("advice", ""),
+            scrubbed_text=result.get("scrubbed_text", ""),
+            timestamp=datetime.utcnow().isoformat(),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/report-scam")
+async def report_scam(request: ReportScamRequest) -> dict:
+    """Submit a scam to the community reporting database."""
+    # In a real app, save to Database. For hackathon MVP, return success.
+    return {"status": "success", "message": "Scam reported successfully. Thank you for protecting the community."}
+
+@app.post("/submit-sample")
+async def submit_sample(request: SubmitSampleRequest) -> dict:
+    """Submit a scrubbed sample to the training pipeline."""
+    return {"status": "success", "message": "Sample ingested for model fine-tuning."}
+
+@app.get("/news-feed", response_model=NewsFeedResponse)
+async def news_feed() -> NewsFeedResponse:
+    """Get the trending scams feed for the app and website."""
+    # Hardcoded trending scams for MVP presentation
+    articles = [
+        NewsFeedArticle(
+            id="1",
+            title="Fake KYC via WhatsApp",
+            category="fake_kyc",
+            description="Users are receiving WhatsApp messages claiming their bank KYC is expiring today. Do not click the links.",
+            reported_count=2341,
+            date=datetime.utcnow().isoformat()
+        ),
+        NewsFeedArticle(
+            id="2",
+            title="Electricity Bill Scam SMS",
+            category="electricity_bill_scam",
+            description="Fraudsters are sending SMS threatening immediate power cut if a 'pending' bill isn't paid via their malicious link.",
+            reported_count=1892,
+            date=datetime.utcnow().isoformat()
+        )
+    ]
+    return NewsFeedResponse(articles=articles)
 
 
 if __name__ == "__main__":

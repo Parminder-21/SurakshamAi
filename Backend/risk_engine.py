@@ -95,13 +95,16 @@ class RiskEngine:
         urgency_score: float,
         authority_score: float,
         deception_score: float,
-        payment_pressure: bool = False,
+        payment_score: float = 0.0,
         suspicious_link: bool = False,
         otp_request: bool = False,
         category_match: bool = False,
+        unrealistic_promise: bool = False,
     ) -> Tuple[float, str]:
         """
-        Hardened risk scoring function.
+        Hardened risk scoring function exactly matching the Matrix:
+        Urgency (0-25), Authority (0-25), Payment Pressure (0-25), Deception/Fear (0-25)
+        Suspicious URL (+10), OTP Request (+15), Unrealistic Promise (+10)
         Returns: (risk_score, severity_label)
         """
         def _clamp(v: float) -> float:
@@ -109,32 +112,39 @@ class RiskEngine:
                 v = float(v)
             except Exception:
                 v = 0.0
-            return max(0.0, min(100.0, v))
+            return max(0.0, min(25.0, v))
 
         u = _clamp(urgency_score)
         a = _clamp(authority_score)
         d = _clamp(deception_score)
+        p = _clamp(payment_score)
 
-        # Step 1: Base score uses aggressive combination
-        base = RiskEngine.combine_scores([u, a, d])
+        # Step 1: Base score using simple addition (up to 100)
+        base = u + a + d + p
 
-        # Step 2: Add transparent bonuses for critical boolean flags
+        # Step 2: Add specific bonuses
         bonus = 0.0
-        if payment_pressure:
-            bonus += 30.0
         if suspicious_link:
-            bonus += 25.0
+            bonus += 10.0
         if otp_request:
-            bonus += 50.0 # Extremely critical
+            bonus += 15.0
+        if unrealistic_promise:
+            bonus += 10.0
         if category_match:
-            # If taxonomy matched a scam category, we start with a strong suspicion
-            bonus += 30.0
+            # Extra nudge if taxonomy directly matched
+            bonus += 10.0
 
         raw_score = base + bonus
         risk_score = round(max(0.0, min(100.0, raw_score)), 2)
 
         # Step 3: Use standardized severity mapping
-        severity = RiskEngine.calculate_severity(risk_score)
+        # 0-30: Safe, 31-70: Suspicious, 71-100: High Risk
+        if risk_score >= 71.0:
+            severity = 'high_risk'
+        elif risk_score >= 31.0:
+            severity = 'suspicious'
+        else:
+            severity = 'safe'
 
         return (risk_score, severity)
 

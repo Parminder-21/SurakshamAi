@@ -21,14 +21,41 @@ class AnalysisViewModel(private val repository: RiskAnalysisRepository = RiskAna
     private val _uiState = MutableStateFlow<AnalysisUiState>(AnalysisUiState.Idle)
     val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
-    fun analyze(message: String, url: String) {
+    fun analyzeMessage(message: String) {
+        if (message.isBlank()) return
         viewModelScope.launch {
             _uiState.value = AnalysisUiState.Loading
             try {
-                val result = repository.analyzeThreat(message, url)
+                val result = repository.analyzeMessage(message)
                 _uiState.value = AnalysisUiState.Success(result)
             } catch (e: Exception) {
-                _uiState.value = AnalysisUiState.Error(e.localizedMessage ?: "An unknown error occurred")
+                _uiState.value = AnalysisUiState.Error(e.localizedMessage ?: "Network error. Is backend running?")
+            }
+        }
+    }
+
+    fun analyzeUrl(url: String) {
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            _uiState.value = AnalysisUiState.Loading
+            try {
+                val result = repository.analyzeUrl(url)
+                _uiState.value = AnalysisUiState.Success(result)
+            } catch (e: Exception) {
+                _uiState.value = AnalysisUiState.Error(e.localizedMessage ?: "Network error. Is backend running?")
+            }
+        }
+    }
+
+    fun analyzeCall(callSummary: String) {
+        if (callSummary.isBlank()) return
+        viewModelScope.launch {
+            _uiState.value = AnalysisUiState.Loading
+            try {
+                val result = repository.analyzeCall(callSummary)
+                _uiState.value = AnalysisUiState.Success(result)
+            } catch (e: Exception) {
+                _uiState.value = AnalysisUiState.Error(e.localizedMessage ?: "Network error. Is backend running?")
             }
         }
     }

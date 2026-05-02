@@ -1,19 +1,32 @@
 """
 Privacy scrubber utility to remove sensitive information.
+Uses regex for patterns (Aadhaar, PAN, Phone, Email)
+Uses spaCy for Name Entity Recognition (PERSON, ORG).
 """
 
 import re
+import logging
 
+try:
+    import spacy
+    nlp = spacy.load("en_core_web_sm")
+    SPACY_AVAILABLE = True
+except (ImportError, OSError):
+    SPACY_AVAILABLE = False
+    logging.warning("spaCy or en_core_web_sm not installed. NLP Name redaction disabled. "
+                    "Run: pip install spacy && python -m spacy download en_core_web_sm")
 
 def scrub_sensitive_data(text: str) -> str:
     """
-    Redact common Indian personal identifiers and emails from `text`.
+    Redact common Indian personal identifiers, emails, and names from `text`.
 
     Replacements use explicit tags:
     - [Phone Redacted]
     - [Aadhaar Redacted]
     - [PAN Redacted]
     - [Email Redacted]
+    - [Name Redacted]
+    - [Org Redacted]
 
     Args:
         text: Input text to scrub
@@ -24,38 +37,49 @@ def scrub_sensitive_data(text: str) -> str:
     if not text:
         return text
 
+    # Step 1: Regex Redaction for strict patterns
     # Aadhaar: 12 digits, may be grouped like 1234 5678 9012 or 123456789012
     aadhaar_pattern = re.compile(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b")
-
     # PAN: 5 letters, 4 digits, 1 letter (case-insensitive)
     pan_pattern = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b", re.IGNORECASE)
-
     # Indian phone numbers: optional +91 / 91 / 0 prefix, then 10 digits (starting 6-9)
     phone_pattern = re.compile(r"(?:(?:\+91|91|0)[\-\s]?)?[6-9]\d{9}\b")
-
     # Email addresses
     email_pattern = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", re.IGNORECASE)
 
-    # Order matters: redact Aadhaar (12-digit) before phone (10-digit) to avoid partial matches
     scrubbed = aadhaar_pattern.sub("[Aadhaar Redacted]", text)
     scrubbed = pan_pattern.sub("[PAN Redacted]", scrubbed)
     scrubbed = phone_pattern.sub("[Phone Redacted]", scrubbed)
     scrubbed = email_pattern.sub("[Email Redacted]", scrubbed)
 
-    return scrubbed
+    # Step 2: NLP Redaction for Names and Organizations (spaCy)
+    if SPACY_AVAILABLE:
+        doc = nlp(scrubbed)
+        # Process from right to left to avoid index shifting when replacing text
+        entities = [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
+        entities.sort(key=lambda x: x[0], reverse=True)
+        
+        for start_char, end_char, label in entities:
+            if label == "PERSON":
+                scrubbed = scrubbed[:start_char] + "[Name Redacted]" + scrubbed[end_char:]
+            elif label == "ORG":
+                # Only redact organization if it doesn't overlap with known entities we want to keep
+                # For a hackathon, aggressive redaction is fine for privacy.
+                scrubbed = scrubbed[:start_char] + "[Org Redacted]" + scrubbed[end_char:]
 
+    return scrubbed
 
 def contains_sensitive_data(text: str) -> bool:
     """
     Check presence of any supported sensitive data patterns or redaction tags.
-
     Returns True if any known pattern or tag is found.
     """
     if not text:
         return False
 
     # Check for redaction tags first
-    if any(tag in text for tag in ["[Aadhaar Redacted]", "[PAN Redacted]", "[Phone Redacted]", "[Email Redacted]"]):
+    tags = ["[Aadhaar Redacted]", "[PAN Redacted]", "[Phone Redacted]", "[Email Redacted]", "[Name Redacted]", "[Org Redacted]"]
+    if any(tag in text for tag in tags):
         return True
 
     checks = [
@@ -68,35 +92,11 @@ def contains_sensitive_data(text: str) -> bool:
     for patt in checks:
         if patt.search(text):
             return True
+            
+    if SPACY_AVAILABLE:
+        doc = nlp(text)
+        for ent in doc.ents:
+            if ent.label_ in ["PERSON", "ORG"]:
+                return True
+
     return False
-
-
-# ----------------------
-# Temporary test cases (docs / examples)
-# ----------------------
-"""
-Test Cases (examples) - Kya karna hai: These are example inputs and expected redacted outputs.
-
-1) Phone number with country code
-   Input: "Call me at +91 9876543210 or 09876543210"
-   Output: "Call me at [Phone Redacted] or [Phone Redacted]"
-
-2) Aadhaar in groups
-   Input: "My Aadhaar is 1234 5678 9012, please keep it safe."
-   Output: "My Aadhaar is [Aadhaar Redacted], please keep it safe."
-
-3) PAN mixed case
-   Input: "PAN: aaapl1234c is linked"
-   Output: "PAN: [PAN Redacted] is linked"
-
-4) Email and phone together
-   Input: "Contact: rahul@example.com or 9123456789"
-   Output: "Contact: [Email Redacted] or [Phone Redacted]"
-
-5) Multiple sensitive items
-   Input: "Send KYC docs: 123456789012, PAN AAAPL1234C, email abc@mail.com"
-   Output: "Send KYC docs: [Aadhaar Redacted], PAN [PAN Redacted], email [Email Redacted]"
-
-Notes:
-- Keep these examples here temporarily to avoid sending raw PI to external services.
-"""

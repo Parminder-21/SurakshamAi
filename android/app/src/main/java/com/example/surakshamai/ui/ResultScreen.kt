@@ -1,5 +1,7 @@
 package com.example.surakshamai.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,13 +12,16 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +49,18 @@ fun ResultScreen(
         else -> Icons.Default.Info
     }
 
+    // Animation for progress bar
+    var animationPlayed by remember { mutableStateOf(false) }
+    val currentPercentage by animateFloatAsState(
+        targetValue = if (animationPlayed) (result.riskScore / 100f).toFloat() else 0f,
+        animationSpec = tween(durationMillis = 1500),
+        label = "progress"
+    )
+
+    LaunchedEffect(key1 = true) {
+        animationPlayed = true
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -66,33 +83,55 @@ fun ResultScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Main Result Card
+            // Main Risk Card with Circular Progress
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = severityColor.copy(alpha = 0.1f)
+                    containerColor = severityColor.copy(alpha = 0.05f)
                 ),
-                border = BorderStroke(1.dp, severityColor)
+                border = BorderStroke(1.dp, severityColor.copy(alpha = 0.5f))
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = severityIcon,
-                        contentDescription = null,
-                        tint = severityColor,
-                        modifier = Modifier.size(64.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(contentAlignment = Alignment.Center) {
+                        // Circular Progress Indicator
+                        CircularProgressIndicator(
+                            progress = currentPercentage,
+                            modifier = Modifier.size(160.dp),
+                            color = severityColor,
+                            strokeWidth = 12.dp,
+                            strokeCap = StrokeCap.Round,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = severityIcon,
+                                contentDescription = null,
+                                tint = severityColor,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${(currentPercentage * 100).toInt()}",
+                                fontSize = 42.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     Text(
                         text = result.category.uppercase().replace("_", " "),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
-                        color = severityColor
+                        color = severityColor,
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -103,81 +142,96 @@ fun ResultScreen(
                     ) {
                         Text(
                             text = result.severity.uppercase().replace("_", " "),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                             color = Color.White,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = result.riskScore.toString(),
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "/100",
-                            fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 10.dp, start = 4.dp)
-                        )
-                    }
-                    Text(
-                        text = "Risk Score",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Reasons
-            Text(
-                text = "Analysis Reasons",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-            )
-            
-            result.reasons.forEach { reason ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(0.5.dp, severityColor.copy(alpha = 0.3f))
+            // Reasons Section
+            if (result.reasons.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = severityColor)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = reason,
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Why we flagged this",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
+                
+                result.reasons.forEach { reason ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = BorderStroke(0.5.dp, severityColor.copy(alpha = 0.2f))
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "• ", 
+                                fontWeight = FontWeight.Bold, 
+                                color = severityColor
+                            )
+                            Text(
+                                text = reason,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Guidance
-            Text(
-                text = "Preventive Actions",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-            )
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    result.guidance.forEach { step ->
-                        Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                            Text("• ", fontWeight = FontWeight.Bold)
-                            Text(text = step, style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
+            // Guidance Section
+            if (result.guidance.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Shield, contentDescription = null, tint = Color(0xFF4CAF50))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Safe Actions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF4CAF50).copy(alpha = 0.05f)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        result.guidance.forEach { step ->
+                            Row(modifier = Modifier.padding(vertical = 6.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle, 
+                                    contentDescription = null, 
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = step, 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    lineHeight = 20.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -197,8 +251,8 @@ fun ResultScreenPreview() {
                 category = "lottery_scam",
                 riskScore = 85.0,
                 severity = "high_risk",
-                reasons = listOf("Urgent language", "Request for money"),
-                guidance = listOf("Block sender", "Do not share OTP")
+                reasons = listOf("Urgent language detected in message", "Request for money or sensitive info", "Uses a shortening service link"),
+                guidance = listOf("Do not click any links or download attachments", "Block the sender immediately", "Do not share OTP")
             )
         )
     }

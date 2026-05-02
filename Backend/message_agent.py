@@ -105,10 +105,11 @@ class MessageAgent:
         category, category_keywords, category_red_flags = self._detect_category(message_lower)
         matched_keywords.extend(category_keywords)
 
-        urgency_score, urgency_hits = self._score_terms(message_lower, self.general_urgency_terms, 18.0)
-        authority_score, authority_hits = self._score_terms(message_lower, self.authority_terms, 22.0)
-        deception_score, deception_hits = self._score_terms(message_lower, self.deception_terms, 20.0)
-        payment_pressure, payment_hits = self._flag_terms(message_lower, self.payment_terms)
+        urgency_score, urgency_hits = self._score_terms(message_lower, self.general_urgency_terms, 25.0)
+        authority_score, authority_hits = self._score_terms(message_lower, self.authority_terms, 25.0)
+        deception_score, deception_hits = self._score_terms(message_lower, self.deception_terms, 25.0)
+        payment_score, payment_hits = self._score_terms(message_lower, self.payment_terms, 25.0)
+        payment_pressure = bool(payment_hits)
         otp_request, otp_hits = self._flag_terms(message_lower, self.otp_terms)
         suspicious_link = self._has_suspicious_link(message_lower)
         reward_promise = self._has_reward_promise(message_lower)
@@ -150,10 +151,11 @@ class MessageAgent:
             urgency_score=urgency_score,
             authority_score=authority_score,
             deception_score=deception_score,
-            payment_pressure=payment_pressure,
+            payment_score=payment_score,
             suspicious_link=suspicious_link,
             otp_request=otp_request,
             category_match=category_match,
+            unrealistic_promise=reward_promise
         )
 
         if suspicious_link:

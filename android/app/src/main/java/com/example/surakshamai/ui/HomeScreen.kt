@@ -1,5 +1,6 @@
 package com.example.surakshamai.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,9 +31,8 @@ fun HomeScreen(
     viewModel: AnalysisViewModel = viewModel(),
     onNavigateToResult: () -> Unit = {}
 ) {
-    // Beginner-friendly state management using remember and mutableStateOf
-    var messageText by remember { mutableStateOf("") }
-    var urlText by remember { mutableStateOf("") }
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    var inputText by remember { mutableStateOf("") }
     
     val uiState by viewModel.uiState.collectAsState()
 
@@ -83,7 +84,33 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Tab Navigation
+            val tabs = listOf("Message", "URL", "Call")
+            val icons = listOf(Icons.Default.Message, Icons.Default.Link, Icons.Default.Phone)
+            
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = {} // Remove default divider
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { 
+                            selectedTabIndex = index 
+                            inputText = "" // Clear input when switching tabs
+                            viewModel.resetState()
+                        },
+                        text = { Text(title, fontWeight = FontWeight.Bold) },
+                        icon = { Icon(icons[index], contentDescription = null) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Input Card
             Card(
@@ -97,36 +124,48 @@ fun HomeScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "New Analysis",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Message Input Field
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        label = { Text("Paste Message") },
-                        placeholder = { Text("e.g. You won a lottery!") },
-                        leadingIcon = { Icon(Icons.Default.Message, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        minLines = 3,
-                        maxLines = 5
-                    )
-
-                    // URL Input Field
-                    OutlinedTextField(
-                        value = urlText,
-                        onValueChange = { urlText = it },
-                        label = { Text("Paste URL") },
-                        placeholder = { Text("e.g. http://scam-site.com") },
-                        leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        singleLine = true
-                    )
+                    Crossfade(targetState = selectedTabIndex, label = "TabContent") { tabIndex ->
+                        when(tabIndex) {
+                            0 -> {
+                                OutlinedTextField(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    label = { Text("Paste Suspicious Message") },
+                                    placeholder = { Text("e.g. Your KYC is expiring today. Click here to update...") },
+                                    leadingIcon = { Icon(Icons.Default.Message, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    minLines = 4,
+                                    maxLines = 6
+                                )
+                            }
+                            1 -> {
+                                OutlinedTextField(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    label = { Text("Paste URL / Link") },
+                                    placeholder = { Text("e.g. http://scam-site.com") },
+                                    leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    singleLine = true
+                                )
+                            }
+                            2 -> {
+                                OutlinedTextField(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    label = { Text("Paste Call Transcript / Summary") },
+                                    placeholder = { Text("e.g. Caller claimed to be from Police and demanded money...") },
+                                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    minLines = 4,
+                                    maxLines = 6
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -143,13 +182,17 @@ fun HomeScreen(
                     // Analyze Button
                     Button(
                         onClick = { 
-                            viewModel.analyze(messageText, urlText)
+                            when(selectedTabIndex) {
+                                0 -> viewModel.analyzeMessage(inputText)
+                                1 -> viewModel.analyzeUrl(inputText)
+                                2 -> viewModel.analyzeCall(inputText)
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = (messageText.isNotBlank() || urlText.isNotBlank()) && uiState !is AnalysisUiState.Loading
+                        enabled = inputText.isNotBlank() && uiState !is AnalysisUiState.Loading
                     ) {
                         if (uiState is AnalysisUiState.Loading) {
                             CircularProgressIndicator(
